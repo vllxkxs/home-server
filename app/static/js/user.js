@@ -191,53 +191,120 @@ function buildSettlementTable(rows, color) {
     return table;
 }
 
+const WINDOW = 4; // periods shown at once — keeps chart readable
+
 function renderStats(expenses, userId) {
     const userExpenses = expenses.filter(e =>
         e.shares.some(s => s.user_id === userId) &&
         (e.category || "").toLowerCase() !== "settlement"
     );
 
-    const monthData = {};
-    for (const e of userExpenses) {
-        const month = e.date.substring(0, 7);
-        if (!monthData[month]) monthData[month] = {};
-        monthData[month][e.category] = (monthData[month][e.category] || 0) + e.cost;
+    // Stable category → color map so colors don't shift as window moves.
+    const allCategories = [...new Set(userExpenses.map(e => e.category))].sort();
+    const colorFor = {};
+    allCategories.forEach((cat, i) => { colorFor[cat] = CHART_COLORS[i % CHART_COLORS.length]; });
+
+    let granularity = "month"; // "month" | "quarter"
+    let offset = 0;            // periods back from most recent window
+
+    const canvas = document.getElementById("monthly-chart");
+    const emptyMsg = document.getElementById("stats-empty");
+    const backBtn = document.getElementById("stats-back");
+    const fwdBtn = document.getElementById("stats-forward");
+    const granBtn = document.getElementById("stats-granularity");
+    const rangeLabel = document.getElementById("stats-range");
+    const granLabel = document.getElementById("stats-granularity-label");
+    let chart = null;
+
+    function periodKey(dateStr) {
+        if (granularity === "month") return dateStr.substring(0, 7);
+        const y = dateStr.substring(0, 4);
+        const q = Math.floor((parseInt(dateStr.substring(5, 7)) - 1) / 3) + 1;
+        return `${y}-Q${q}`;
     }
 
-    const months = Object.keys(monthData).sort();
-    const categories = [...new Set(userExpenses.map(e => e.category))].sort();
-
-    if (months.length === 0) {
-        document.getElementById("panel-stats").querySelector("section").appendChild(
-            Object.assign(document.createElement("p"), { textContent: "No expenses to display." })
-        );
-        return;
+    function periodLabel(key) {
+        if (granularity === "quarter") return key;
+        const [y, m] = key.split("-");
+        return new Date(parseInt(y), parseInt(m) - 1, 1)
+            .toLocaleDateString(undefined, { month: "short", year: "numeric" });
     }
 
-    const datasets = categories.map((cat, i) => ({
-        label: cat,
-        data: months.map(m => monthData[m][cat] || 0),
-        backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
-    }));
+    function update() {
+        const data = {};
+        for (const e of userExpenses) {
+            const key = periodKey(e.date);
+            (data[key] || (data[key] = {}))[e.category] = (data[key][e.category] || 0) + e.cost;
+        }
+        const allPeriods = Object.keys(data).sort();
 
-    const ctx = document.getElementById("monthly-chart").getContext("2d");
-    new Chart(ctx, {
-        type: "bar",
-        data: { labels: months, datasets },
-        options: {
-            responsive: true,
-            scales: {
-                x: { stacked: true },
-                y: { stacked: true, beginAtZero: true, ticks: { callback: v => `€${v}` } }
-            },
-            plugins: {
-                legend: { position: "bottom" },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.dataset.label}: €${ctx.parsed.y.toFixed(2)}`
+        if (allPeriods.length === 0) {
+            if (chart) { chart.destroy(); chart = null; }
+            canvas.hidden = true;
+            emptyMsg.hidden = false;
+            rangeLabel.textContent = "";
+            backBtn.disabled = fwdBtn.disabled = true;
+            return;
+        }
+        emptyMsg.hidden = true;
+        canvas.hidden = false;
+
+        const maxOffset = Math.max(0, allPeriods.length - WINDOW);
+        offset = Math.min(Math.max(offset, 0), maxOffset);
+        const end = allPeriods.length - offset;
+        const visible = allPeriods.slice(Math.max(0, end - WINDOW), end);
+
+        backBtn.disabled = offset >= maxOffset;
+        fwdBtn.disabled = offset <= 0;
+
+        rangeLabel.textContent = visible.length === 1
+            ? periodLabel(visible[0])
+            : `${periodLabel(visible[0])} – ${periodLabel(visible[visible.length - 1])}`;
+
+        const cats = allCategories.filter(cat => visible.some(p => data[p][cat]));
+        const datasets = cats.map(cat => ({
+            label: cat,
+            data: visible.map(p => data[p][cat] || 0),
+            backgroundColor: colorFor[cat],
+        }));
+        const labels = visible.map(periodLabel);
+
+        if (chart) {
+            chart.data.labels = labels;
+            chart.data.datasets = datasets;
+            chart.update();
+        } else {
+            chart = new Chart(canvas.getContext("2d"), {
+                type: "bar",
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true, ticks: { callback: v => `€${v}` } }
+                    },
+                    plugins: {
+                        legend: { position: "bottom" },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: €${ctx.parsed.y.toFixed(2)}`
+                            }
+                        }
                     }
                 }
-            }
+            });
         }
+    }
+
+    backBtn.addEventListener("click", () => { offset += 1; update(); });
+    fwdBtn.addEventListener("click", () => { offset -= 1; update(); });
+    granBtn.addEventListener("click", () => {
+        granularity = granularity === "month" ? "quarter" : "month";
+        offset = 0;
+        granBtn.textContent = granularity === "month" ? "Switch to Quarters" : "Switch to Months";
+        granLabel.textContent = granularity === "month" ? "Month" : "Quarter";
+        update();
     });
+
+    update();
 }

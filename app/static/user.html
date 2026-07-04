@@ -48,8 +48,15 @@
 
 <div id="panel-stats" hidden>
     <section>
-        <h2>Expenses by Month</h2>
+        <h2>Expenses by <span id="stats-granularity-label">Month</span></h2>
+        <div id="stats-controls" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">
+            <button id="stats-back" type="button" class="outline secondary" style="width:auto;padding:0.25rem 0.75rem;margin:0;" title="Older">◀</button>
+            <span id="stats-range" style="min-width:12rem;text-align:center;font-weight:bold;"></span>
+            <button id="stats-forward" type="button" class="outline secondary" style="width:auto;padding:0.25rem 0.75rem;margin:0;" title="Newer">▶</button>
+            <button id="stats-granularity" type="button" class="secondary" style="width:auto;margin:0 0 0 auto;">Switch to Quarters</button>
+        </div>
         <canvas id="monthly-chart"></canvas>
+        <p id="stats-empty" hidden>No expenses to display.</p>
     </section>
 </div>
 

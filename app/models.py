@@ -11,6 +11,9 @@ class User(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     is_admin = Column(Boolean, nullable=False, default=False)
+    # Inactive users keep their expense history but cannot log in or be added to new expenses.
+    is_active = Column(Boolean, nullable=False, default=True, server_default="1")
+    must_change_password = Column(Boolean, nullable=False, default=False, server_default="0")
 
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete")
 
@@ -26,7 +29,7 @@ class Expense(Base):
     currency = Column(String, nullable=False)
     comment = Column(String, nullable=True)
 
-    shares = relationship("ExpenseShare", back_populates="expense", cascade="all, delete")
+    shares = relationship("ExpenseShare", back_populates="expense", cascade="all, delete-orphan")
 
 
 class ExpenseShare(Base):

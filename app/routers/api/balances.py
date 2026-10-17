@@ -1,19 +1,31 @@
-from enum import Enum
-
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
+from app.app_settings import get_setting
 from app.auth import get_current_user, get_db
 
 router = APIRouter()
 
+_EPSILON = 0.005
+
+
+def _participants(db: Session, expenses) -> list[models.User]:
+    """Active flatmates plus anyone who appears in an expense.
+
+    Admins are not participants; one only shows up here if legacy data gives them shares.
+    """
+    in_expenses = {s.user_id for e in expenses for s in e.shares}
+    users = db.query(models.User).order_by(models.User.name).all()
+    return [u for u in users if u.id in in_expenses or (u.is_active and not u.is_admin)]
+
 
 def _build_pairwise(db: Session):
-    users = db.query(models.User).all()
+    expenses = db.query(models.Expense).options(selectinload(models.Expense.shares)).all()
+    users = _participants(db, expenses)
     balances = {u.id: {u1.id: 0.0 for u1 in users if u1.id != u.id} for u in users}
 
-    for expense in db.query(models.Expense).all():
+    for expense in expenses:
         payers = [s for s in expense.shares if s.share < 0]
         debtors = [s for s in expense.shares if s.share > 0]
         total_paid = sum(-s.share for s in payers)
@@ -33,26 +45,20 @@ def _build_pairwise(db: Session):
 
 def _full_settlements(users, balances):
     user_map = {u.id: u.name for u in users}
-    seen = set()
     result = []
 
-    for a_id in sorted(user_map):
-        for b_id in sorted(user_map):
+    for a_id in user_map:
+        for b_id in user_map:
             if a_id >= b_id:
                 continue
-            pair = (a_id, b_id)
-            if pair in seen:
-                continue
-            seen.add(pair)
-
             val = balances[a_id].get(b_id, 0.0)
-            if val < -0.005:
+            if val < -_EPSILON:
                 result.append(schemas.SettlementRead(
                     from_user_id=a_id, from_name=user_map[a_id],
                     to_user_id=b_id, to_name=user_map[b_id],
                     amount=round(-val, 2),
                 ))
-            elif val > 0.005:
+            elif val > _EPSILON:
                 result.append(schemas.SettlementRead(
                     from_user_id=b_id, from_name=user_map[b_id],
                     to_user_id=a_id, to_name=user_map[a_id],
@@ -67,11 +73,11 @@ def _simplified_settlements(users, balances):
     net = {u.id: sum(balances[u.id].values()) for u in users}
 
     debtors = sorted(
-        [[-v, uid] for uid, v in net.items() if v < -0.005],
+        [[-v, uid] for uid, v in net.items() if v < -_EPSILON],
         key=lambda x: -x[0],
     )
     creditors = sorted(
-        [[v, uid] for uid, v in net.items() if v > 0.005],
+        [[v, uid] for uid, v in net.items() if v > _EPSILON],
         key=lambda x: -x[0],
     )
 
@@ -81,24 +87,20 @@ def _simplified_settlements(users, balances):
         debt, d_id = debtors[i]
         credit, c_id = creditors[j]
         payment = round(min(debt, credit), 2)
-        result.append(schemas.SettlementRead(
-            from_user_id=d_id, from_name=user_map[d_id],
-            to_user_id=c_id, to_name=user_map[c_id],
-            amount=payment,
-        ))
+        if payment > 0:
+            result.append(schemas.SettlementRead(
+                from_user_id=d_id, from_name=user_map[d_id],
+                to_user_id=c_id, to_name=user_map[c_id],
+                amount=payment,
+            ))
         debtors[i][0] -= payment
         creditors[j][0] -= payment
-        if debtors[i][0] < 0.005:
+        if debtors[i][0] < _EPSILON:
             i += 1
-        if creditors[j][0] < 0.005:
+        if creditors[j][0] < _EPSILON:
             j += 1
 
     return result
-
-
-class SettlementMode(str, Enum):
-    simplified = "simplified"
-    full = "full"
 
 
 @router.get("/", response_model=list[schemas.BalanceRead])
@@ -107,23 +109,23 @@ def get_balances(
     _current_user: models.User = Depends(get_current_user),
 ):
     users, balances = _build_pairwise(db)
-    return [
-        schemas.BalanceRead(
-            user_id=u.id,
-            name=u.name,
-            balance=round(sum(balances[u.id].values()), 2),
-        )
-        for u in users
-    ]
+    result = []
+    for u in users:
+        balance = round(sum(balances[u.id].values()), 2)
+        # Hide settled admins/deactivated users; they only matter while money is open.
+        if (u.is_admin or not u.is_active) and abs(balance) < _EPSILON:
+            continue
+        result.append(schemas.BalanceRead(user_id=u.id, name=u.name, balance=balance))
+    return result
 
 
 @router.get("/settlements/", response_model=list[schemas.SettlementRead])
 def get_settlements(
-    mode: SettlementMode = Query(default=SettlementMode.simplified),
+    mode: schemas.SettlementMode | None = Query(default=None, description="Defaults to the app setting"),
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
 ):
     users, balances = _build_pairwise(db)
-    if mode == SettlementMode.full:
+    if (mode or get_setting(db, "settlement_mode")) == "full":
         return _full_settlements(users, balances)
     return _simplified_settlements(users, balances)

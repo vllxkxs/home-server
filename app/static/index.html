@@ -1,45 +1,41 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Flat Expenses</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <title>{{APP_NAME}}</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/vendor/pico.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <script type="module" src="/static/js/app.js"></script>
 </head>
 <body>
 <main class="container">
-
-<h1>Flat Expenses</h1>
-
-<section id="login-section" style="display:none">
-    <article>
-        <h2>Login</h2>
+<section id="login" class="login" hidden>
+    <article class="login-card">
+        <header>
+            <img src="/static/favicon.svg" alt="" width="48" height="48">
+            <h1>{{APP_NAME}}</h1>
+            <p class="muted">Shared costs, settled simply.</p>
+        </header>
         <form id="login-form">
-            <input id="login-name" placeholder="Name" autocomplete="username" required>
-            <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" required>
-            <button type="submit">Login</button>
+            <label>Name
+                <input id="login-name" name="username" autocomplete="username" required autofocus>
+            </label>
+            <label>Password
+                <span class="password-field">
+                    <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+                    <button type="button" id="toggle-password" class="link-button" aria-label="Show password">Show</button>
+                </span>
+            </label>
+            <p id="login-error" class="message error" hidden></p>
+            <button type="submit" id="login-submit">Log in</button>
         </form>
-        <p id="login-error" class="error"></p>
     </article>
 </section>
 
-<section id="app-section" style="display:none">
-    <nav>
-        <ul></ul>
-        <ul>
-            <li><button id="profile-btn" type="button" class="secondary" onclick="location.href='#'">My Profile</button></li>
-            <li><button id="admin-btn" type="button" style="display:none" onclick="location.href='/admin'">Admin</button></li>
-            <li><button id="logout-btn" type="button" class="secondary">Logout</button></li>
-        </ul>
-    </nav>
-    <h2>Settlements</h2>
-    <div id="settlements-list"></div>
-
-    <button class="add-expense-btn" onclick="location.href='/expenses'">Add New Expense</button>
-</section>
-
+<div id="dashboard" hidden></div>
 </main>
-<script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

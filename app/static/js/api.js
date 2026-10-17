@@ -1,129 +1,66 @@
-const BASE_URL = "";
+// Single source for all API calls.
 
 async function request(path, options = {}) {
     const res = await fetch(path, {
+        credentials: "same-origin",
+        ...options,
         headers: {
             "Content-Type": "application/json",
-            ...(options.headers || {})
+            ...(options.headers || {}),
         },
-        credentials: "same-origin",
-        ...options
     });
 
     if (!res.ok) {
-        const err = new Error(res.statusText);
+        const err = new Error(await errorMessage(res));
         err.status = res.status;
-        if (res.status === 401) {
-            err.message = "Unauthorized";
-        }
-        const text = await res.text();
-        err.message = text || err.message;
         throw err;
     }
-
     return res.status !== 204 ? res.json() : null;
 }
 
-export function fmt(n) {
-    return (+n).toFixed(2);
+async function errorMessage(res) {
+    const text = await res.text();
+    try {
+        const { detail } = JSON.parse(text);
+        if (typeof detail === "string") return detail;
+        // Pydantic validation errors: [{loc, msg}, ...]
+        if (Array.isArray(detail)) {
+            return detail.map(d => `${d.loc?.slice(1).join(".") || "input"}: ${d.msg}`).join("; ");
+        }
+    } catch { /* not JSON */ }
+    return text || res.statusText;
 }
+
+const json = (method, body) => ({ method, body: JSON.stringify(body) });
+
+export const api = {
+    login: (payload) => request("/api/auth/login", json("POST", payload)),
+    logout: () => request("/api/auth/logout", { method: "POST" }),
+
+    getMe: () => request("/api/users/me"),
+    getUsers: () => request("/api/users/"),
+    getUser: (userId) => request(`/api/users/${userId}`),
+    createUser: (payload) => request("/api/users/", json("POST", payload)),
+    updateUser: (userId, payload) => request(`/api/users/${userId}`, json("PATCH", payload)),
+    deleteUser: (userId) => request(`/api/users/${userId}`, { method: "DELETE" }),
+
+    getExpenses: ({ userId } = {}) =>
+        request(userId != null ? `/api/expenses/?user_id=${userId}` : "/api/expenses/"),
+    getExpense: (expenseId) => request(`/api/expenses/${expenseId}`),
+    getCategories: () => request("/api/expenses/categories"),
+    addExpense: (expense) => request("/api/expenses/", json("POST", expense)),
+    updateExpense: (expenseId, payload) => request(`/api/expenses/${expenseId}`, json("PATCH", payload)),
+    deleteExpense: (expenseId) => request(`/api/expenses/${expenseId}`, { method: "DELETE" }),
+
+    getBalances: () => request("/api/balances/"),
+    // mode omitted -> server uses the app setting
+    getSettlements: () => request("/api/balances/settlements/"),
+
+    getSettings: () => request("/api/settings/"),
+    updateSettings: (payload) => request("/api/settings/", json("PATCH", payload)),
+};
 
 export function redirectToLogin() {
     const next = window.location.pathname + window.location.search;
     window.location.href = `/?next=${encodeURIComponent(next)}`;
 }
-
-export const api = {
-    getUsers() {
-        return request("/api/users/");
-    },
-
-    getUser(userId) {
-        return request(`/api/users/${userId}`);
-    },
-
-    getMe() {
-        return request("/api/users/me");
-    },
-
-    getExpenses() {
-        return request("/api/expenses/");
-    },
-
-    getExpense(expenseId) {
-        return request(`/api/expenses/${expenseId}/`);
-    },
-
-    getBalances() {
-        return request("/api/balances/");
-    },
-
-    getSettlements(mode = "simplified") {
-        return request(`/api/balances/settlements/?mode=${mode}`);
-    },
-
-    getSettings() {
-        return request("/api/settings/");
-    },
-
-    updateSettings(payload) {
-        return request("/api/settings/", { method: "PATCH", body: JSON.stringify(payload) });
-    },
-
-    addExpense(expense) {
-        return request("/api/expenses/", {
-            method: "POST",
-            body: JSON.stringify(expense)
-        });
-    },
-
-    updateExpense(expenseId, payload) {
-        return request(`/api/expenses/${expenseId}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload)
-        });
-    },
-
-    deleteExpense(expenseId) {
-        return request(`/api/expenses/${expenseId}`, {
-            method: "DELETE"
-        });
-    },
-
-    createUser(payload) {
-        return request("/api/users/", {
-            method: "POST",
-            body: JSON.stringify(payload)
-        });
-    },
-
-    updateUser(userId, payload) {
-        return request(`/api/users/${userId}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload)
-        });
-    },
-
-    deleteUser(userId) {
-        return request(`/api/users/${userId}`, {
-            method: "DELETE"
-        });
-    },
-
-    login(payload) {
-        return request("/api/auth/login", {
-            method: "POST",
-            body: JSON.stringify(payload)
-        });
-    },
-
-    logout() {
-        return request("/api/auth/logout", {
-            method: "POST"
-        });
-    },
-
-    getCategories() {
-        return request("/api/expenses/categories");
-    }
-};

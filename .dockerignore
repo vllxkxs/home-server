@@ -1,0 +1,16 @@
+.git
+.idea
+.vscode
+.venv
+venv
+**/__pycache__
+**/*.pyc
+*.egg-info
+.pytest_cache
+*.db
+*.db-*
+data
+backups
+.env
+tests
+test.py

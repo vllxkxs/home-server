@@ -2,40 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Settings</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <title>Account · {{APP_NAME}}</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/vendor/pico.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <script type="module" src="/static/js/settings.js"></script>
 </head>
 <body>
 <main class="container">
-
-<nav>
-    <ul><li><a id="back-link" href="/">← Back</a></li></ul>
-</nav>
-
-<h1>Settings</h1>
-
-<article>
-    <h2>Change Name</h2>
-    <form id="name-form">
-        <input id="new-name" placeholder="New name" autocomplete="username" required>
-        <button type="submit">Save</button>
-    </form>
-    <p id="name-msg"></p>
-</article>
-
-<article>
-    <h2>Change Password</h2>
-    <form id="password-form">
-        <input id="new-password" type="password" placeholder="New password" autocomplete="new-password" required>
-        <input id="confirm-password" type="password" placeholder="Confirm password" autocomplete="new-password" required>
-        <button type="submit">Save</button>
-    </form>
-    <p id="password-msg"></p>
-</article>
-
+<div id="page"></div>
 </main>
-<script type="module" src="/static/js/settings.js"></script>
 </body>
 </html>

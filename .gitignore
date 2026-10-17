@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 home_server.egg-info/
 *.db
+*.db-wal
+*.db-shm
+backups/
+data/
+.env
+.pytest_cache/

@@ -18,7 +18,7 @@ function icon(name) {
     return span;
 }
 
-function renderNav(me) {
+function renderNav(me, appName) {
     const path = window.location.pathname;
     const links = [
         { href: "/", label: "Home", icon: "home", active: path === "/" },
@@ -42,7 +42,7 @@ function renderNav(me) {
 
     const header = el("header", { class: "topbar" },
         el("div", { class: "topbar-inner" },
-            el("a", { href: "/", class: "brand" }, "Flat Expenses"),
+            el("a", { href: "/", class: "brand" }, appName),
             el("nav", { class: "mainnav", "aria-label": "Main" },
                 links.map(l => el("a", {
                     href: l.href,
@@ -77,7 +77,7 @@ export async function boot({ admin = false, allowPasswordChange = false } = {}) 
         return new Promise(() => {});
     }
     setCurrency(settings.currency);
-    renderNav(me);
+    renderNav(me, settings.app_name);
     return { me, settings };
 }
 

@@ -8,6 +8,7 @@ Password = Annotated[str, StringConstraints(min_length=8, max_length=200)]
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Currency = Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"^[A-Za-z]{3}$")]
 Comment = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)]
+AppName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 SettlementMode = Literal["simplified", "full"]
 
 
@@ -122,10 +123,12 @@ class SettlementRead(BaseModel):
 
 
 class SettingsRead(BaseModel):
+    app_name: str
     settlement_mode: SettlementMode
     currency: str
 
 
 class SettingsUpdate(BaseModel):
+    app_name: AppName | None = None
     settlement_mode: SettlementMode | None = None
     currency: Currency | None = None

@@ -41,7 +41,7 @@ OpenAPI docs at `http://127.0.0.1:8000/docs` when running.
 - `app/config.py` — all env-var config (DATA_DIR, DATABASE_URL, COOKIE_SECURE, ADMIN_PASSWORD, BACKUP_KEEP, login throttle). Paths absolute, not cwd-relative
 - `app/main.py` — app entry, lifespan (migrate + seed + daily backup task), security headers middleware, `/api/health`, router + page registration (`_PAGES` dict)
 - `app/db_init.py` — `migrate()` (create_all + additive column migrations via `_COLUMN_MIGRATIONS`, PRAGMA user_version), `seed()` admin + default settings, `backup_database()`
-- `app/app_settings.py` — key/value app settings (`settlement_mode`, `currency`) with defaults
+- `app/app_settings.py` — key/value app settings (`app_name`, `settlement_mode`, `currency`) with defaults
 - `app/auth.py` — bcrypt_sha256 hashing, rolling session, `get_current_user`, `require_admin` deps, cookie helpers, `utcnow()`
 - `app/models.py` — `User` (is_admin, is_active, must_change_password), `Expense`, `ExpenseShare`, `UserSession`, `AppSetting`
 - `app/schemas.py` — Pydantic schemas; validation (name/password lengths, cost > 0, cents rounding, currency code)
@@ -84,7 +84,7 @@ No Alembic. New column → add to model AND append `(table, column, DDL)` to `_C
 - `GET /api/expenses/{id}` — admin or any user with share in that expense
 - `PATCH/DELETE /api/expenses/{id}` — admin or any payer (negative share). PATCH validates everything before mutating (no partial writes); all fields optional
 
-**Settings:** GET any user; PATCH admin only.
+**Settings:** GET any user; PATCH admin only. `app_name` (1–40 chars) is injected server-side into every page via `{{APP_NAME}}` placeholder in the HTML (escaped) — never hardcode the app name; nav brand reads `settings.app_name`.
 
 ## Expense share model
 Signed floats, rounded to cents on input. Negative = payer, positive = consumer. Must sum to 0; positive sum = cost, negative sum = -cost.

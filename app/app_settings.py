@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app import models
 
 DEFAULTS = {
+    "app_name": "Flat Expenses",
     "settlement_mode": "simplified",
     "currency": "EUR",
 }

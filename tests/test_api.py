@@ -607,7 +607,18 @@ def test_settlements_default_to_setting(client: TestClient):
 
 def test_settings_update_requires_admin(non_admin_client: TestClient):
     assert non_admin_client.patch("/api/settings/", json={"currency": "USD"}).status_code == 403
-    assert non_admin_client.get("/api/settings/").json() == {"settlement_mode": "simplified", "currency": "EUR"}
+    assert non_admin_client.patch("/api/settings/", json={"app_name": "Mine"}).status_code == 403
+    assert non_admin_client.get("/api/settings/").json() == {
+        "app_name": "Flat Expenses", "settlement_mode": "simplified", "currency": "EUR"}
+
+
+def test_rename_app(client: TestClient):
+    res = client.patch("/api/settings/", json={"app_name": "  WG Kasse  "})
+    assert res.status_code == 200
+    assert res.json()["app_name"] == "WG Kasse"
+    assert client.get("/api/settings/").json()["app_name"] == "WG Kasse"
+    assert client.patch("/api/settings/", json={"app_name": "   "}).status_code == 422
+    assert client.patch("/api/settings/", json={"app_name": "x" * 41}).status_code == 422
 
 
 # --- schema migration & backups ----------------------------------------------
@@ -671,3 +682,12 @@ def test_real_app_boots_seeds_admin_and_serves_pages():
         assert login.status_code == 200
         assert login.json()["must_change_password"] is True
         assert c.get("/api/users/me").json()["name"] == "admin"
+
+        # Renamed app shows up in served pages, HTML-escaped.
+        assert "<title>Flat Expenses</title>" in c.get("/").text
+        assert c.patch("/api/settings/", json={"app_name": "Casa <b>&</b>"}).status_code == 200
+        page = c.get("/").text
+        assert "<title>Casa &lt;b&gt;&amp;&lt;/b&gt;</title>" in page
+        assert "{{APP_NAME}}" not in page
+        assert "Expenses · Casa" in c.get("/expenses").text
+        c.patch("/api/settings/", json={"app_name": "Flat Expenses"})

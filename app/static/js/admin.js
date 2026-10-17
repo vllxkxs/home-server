@@ -114,8 +114,32 @@ async function loadSettings(box) {
         el("input", { type: "radio", name: "mode", value, checked: settings.settlement_mode === value, onchange: () => save({ settlement_mode: value }) }),
         el("span", {}, el("strong", {}, label), el("small", { class: "muted" }, hint)));
 
+    const nameInput = el("input", {
+        value: settings.app_name, required: true, maxlength: "40", "aria-label": "App name", autocomplete: "off",
+    });
+    const nameForm = el("form", {
+        onsubmit: async (e) => {
+            e.preventDefault();
+            const appName = nameInput.value.trim();
+            if (!appName || appName === settings.app_name) return;
+            try {
+                await api.updateSettings({ app_name: appName });
+                // Name appears in the nav and page titles of every page; reload to apply it here too.
+                window.location.reload();
+            } catch (err) {
+                showMessage(msg, err.message);
+            }
+        },
+    },
+        el("label", {}, "App name",
+            el("div", { role: "group" }, nameInput, el("button", { type: "submit" }, "Rename"))),
+    );
+
     const currencies = CURRENCIES.includes(settings.currency) ? CURRENCIES : [settings.currency, ...CURRENCIES];
     mount(box, el("article", {},
+        nameForm,
+        el("small", { class: "muted" }, "Shown in the top bar, on the login page and in browser tabs."),
+        el("hr"),
         el("fieldset", {},
             el("legend", {}, "Settlement mode"),
             mode("simplified", "Simplified", "Fewest transfers: everyone settles their net balance."),

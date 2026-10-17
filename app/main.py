@@ -1,13 +1,15 @@
 import asyncio
 import contextlib
+import html
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app import config
+from app.app_settings import get_setting
 from app.database import SessionLocal, engine
 from app.db_init import backup_database, migrate, seed, sqlite_path
 from app.routers.api import auth, balances, expenses, settings as settings_router, users
@@ -90,7 +92,14 @@ app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
 
 def _page(name: str):
     path = config.STATIC_DIR / name
-    return lambda: FileResponse(path)
+
+    def serve():
+        # Pages carry an {{APP_NAME}} placeholder so the admin-chosen name shows without a flash.
+        with SessionLocal() as db:
+            app_name = get_setting(db, "app_name")
+        return HTMLResponse(path.read_text(encoding="utf-8").replace("{{APP_NAME}}", html.escape(app_name)))
+
+    return serve
 
 
 _PAGES = {

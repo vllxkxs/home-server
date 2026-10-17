@@ -8,7 +8,7 @@ Small self-hosted app to track shared flat expenses and settle up. FastAPI + SQL
 - **Settle up**: see who pays whom, record a payment with one click
 - All expenses with search, filters (category, month, person) and **CSV export**
 - Profile with balance, settlements, expenses and a **stats** tab (your share by month/quarter and category)
-- Admin: add flatmates (temporary password, they pick their own at first login), deactivate, reset passwords, app settings (settlement mode, currency)
+- Admin: add flatmates (temporary password, they pick their own at first login), deactivate, reset passwords, app settings (app name, settlement mode, currency)
 - Session cookies (httponly, 30-day rolling), login throttling, security headers (CSP)
 - Daily automatic SQLite backups, health check, auto-restart in Docker
 - Mobile-first UI with bottom tab bar, light/dark mode
@@ -101,7 +101,7 @@ All settings are environment variables (see `.env.example`):
 | `DATA_DIR` | project root (`/data` in Docker) | Where `expenses.db` and `backups/` live |
 | `DATABASE_URL` | `sqlite:///$DATA_DIR/expenses.db` | Override the database location |
 
-Currency and settlement mode are set in the app under **Admin → Settings**.
+App name, currency and settlement mode are set in the app under **Admin → Settings**.
 
 ## Local development
 
@@ -146,7 +146,7 @@ All endpoints except `POST /api/auth/login` and `GET /api/health` require a sess
 ### Balances & settings
 - `GET /api/balances/` — net balance per flatmate
 - `GET /api/balances/settlements/?mode=simplified|full` — who pays whom (mode defaults to the app setting)
-- `GET /api/settings/`, `PATCH /api/settings/` (**admin**) — `settlement_mode`, `currency`
+- `GET /api/settings/`, `PATCH /api/settings/` (**admin**) — `app_name`, `settlement_mode`, `currency`
 - `GET /api/health` — health check
 
 ## Expense model
